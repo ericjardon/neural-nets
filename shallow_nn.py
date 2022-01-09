@@ -1,13 +1,15 @@
 """
-Module that implements a basic feedforward Network of
+Module that implements a basic feedforward ShallowNetwork of
 sigmoid neurons.
 
-Network learns using Stochastic Gradient Descent, using
+ShallowNetwork learns using Stochastic Gradient Descent, using
 backpropagationa algorithm to compute the gradients of the Cost function
 for a particular observation x.
 
-NOTE: it is not yet optimized, the code in this module is for learning purposes
+NOTE: this module is not meant to be performant in production, but rather for learning purposes, 
+and so is not optimized.
 """
+
 from typing import List, Tuple
 import numpy as np
 from numpy.core.numerictypes import nbytes
@@ -21,7 +23,7 @@ import random
 Vector = NDArray 
 LabeledDataset = List[Tuple[Vector, int]]
 
-class Network():
+class ShallowNetwork():
     "Implements the most basic neural net"
 
     def __init__(self, layer_sizes: List[int], verbose=True):
@@ -41,11 +43,6 @@ class Network():
         # and b is number of neurons from previous layer (columns).
         # the output of prev is dot-multiplied with weights for the next, results in col vector with length a
 
-    def sigmoid(self, z):
-        return 1.0 / (1.0 + np.exp(-z))
-    
-    def sigmoid_prime(self, z):
-        """Derivative of sigmoid"""
 
     def feedforward(self, input:Vector):
         """
@@ -54,7 +51,7 @@ class Network():
         """
         a = input
         for b, w in zip(self.biases, self.weights):
-            a = self.sigmoid(np.dot(w, a) + b)  # vectorized operation
+            a = sigmoid(np.dot(w, a) + b)  # vectorized operation
 
         return a
 
@@ -99,7 +96,7 @@ class Network():
     
     def update_nn_weights(self, mini_batch: LabeledDataset, eta: float):
         """
-        Updates the network's weights and biases.
+        Updates the ShallowNetwork's weights and biases.
         Applies gradient descent using backpropagation to a single mini batch.
         mini_batch is a list of tuples (x_vector, y)
         eta is the learning rate (step size in our descent)
@@ -108,6 +105,7 @@ class Network():
         # Initialize gradient approximations
         nabla_w = [np.zeros(w.shape) for w in self.weights]
         nabla_b = [np.zeros(b.shape) for b in self.biases]
+
 
         for x, y in mini_batch:
             # Efficiently compute gradients of every w,b associated to current observation x
@@ -128,8 +126,43 @@ class Network():
                 for b, nb in zip(self.biases, nabla_b)
             ] # every b is a numpy array (vector)
 
-    def backprop(self, x: Vector, y:int):
-        pass
+    def backprop(self, x:Vector, y:int):
+        """
+        Return a tuple `(nabla_b, nabla_w)` representing the
+        gradient for the cost function C_x.  
+        ``nabla_b`` and ``nabla_w`` are layer-by-layer lists of 
+        numpy arrays, similar to ``self.biases`` and ``self.weights``.
+        """
+        nabla_b = [np.zeros(b.shape) for b in self.biases]
+        nabla_w = [np.zeros(w.shape) for w in self.weights]
+        # feedforward
+        activation = x
+        activations = [x] # list to store all the activations, layer by layer
+        zs = [] # list to store all the z vectors, layer by layer
+        for b, w in zip(self.biases, self.weights):
+            z = np.dot(w, activation)+b
+            zs.append(z)
+            activation = sigmoid(z) 
+            activations.append(activation)
+        # backward pass
+        delta = self.cost_derivative(activations[-1], y) * \
+            sigmoid_prime(zs[-1])
+        nabla_b[-1] = delta
+        nabla_w[-1] = np.dot(delta, activations[-2].transpose())
+        # Note that the variable l in the loop below is used a little
+        # differently to the notation in Chapter 2 of the book.  Here,
+        # l = 1 means the last layer of neurons, l = 2 is the
+        # second-last layer, and so on.  It's a renumbering of the
+        # scheme in the book, used here to take advantage of the fact
+        # that Python can use negative indices in lists.
+        for l in range(2, self.n_layers):
+            z = zs[-l]
+            sp = sigmoid_prime(z)
+            delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
+            nabla_b[-l] = delta
+            nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
+        return (nabla_w, nabla_b)
+
 
     def evaluate(self, test_data:LabeledDataset):
         """
@@ -151,5 +184,12 @@ class Network():
         """
         return output_activations - y  # vectorized operation
 
-def main():
-    net = Network([2, 3, 1])
+
+### Utility funcs
+def sigmoid(z):
+    """Sigmoid function"""
+    return 1.0 / (1.0 + np.exp(-z))
+
+def sigmoid_prime(z):
+    """Derivative of sigmoid function"""
+    return sigmoid(z) * (1 - sigmoid(z))
