@@ -135,7 +135,7 @@ class ShallowNetwork():
         """
         nabla_b = [np.zeros(b.shape) for b in self.biases]
         nabla_w = [np.zeros(w.shape) for w in self.weights]
-        # feedforward
+        # 1. Feedforward x
         activation = x
         activations = [x] # list to store all the activations, layer by layer
         zs = [] # list to store all the z vectors, layer by layer
@@ -144,23 +144,26 @@ class ShallowNetwork():
             zs.append(z)
             activation = sigmoid(z) 
             activations.append(activation)
-        # backward pass
+
+        # 2. Backpropagation
+        # Initialize the first delta (error) from output layer
         delta = self.cost_derivative(activations[-1], y) * \
             sigmoid_prime(zs[-1])
         nabla_b[-1] = delta
         nabla_w[-1] = np.dot(delta, activations[-2].transpose())
-        # Note that the variable l in the loop below is used a little
-        # differently to the notation in Chapter 2 of the book.  Here,
-        # l = 1 means the last layer of neurons, l = 2 is the
-        # second-last layer, and so on.  It's a renumbering of the
-        # scheme in the book, used here to take advantage of the fact
-        # that Python can use negative indices in lists.
+
+        # From back to front, compute gradients of w and b as a function of delta and the activation of next layer
         for l in range(2, self.n_layers):
+            # Backpropagation: compute delta of previous layer in terms of the next layer's weights and delta
             z = zs[-l]
             sp = sigmoid_prime(z)
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
-            nabla_b[-l] = delta
+
+            # 3. Update gradients of w and b of current layer in loop
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
+            nabla_b[-l] = delta
+        
+        # Return the gradient of all w and all b
         return (nabla_w, nabla_b)
 
 
@@ -180,7 +183,7 @@ class ShallowNetwork():
     
     def cost_derivative(self, output_activations: Vector, y: Vector):
         """
-        Return the vector of partial derivatives
+        The derivative of the quadratic cost function for a single observation
         """
         return output_activations - y  # vectorized operation
 
